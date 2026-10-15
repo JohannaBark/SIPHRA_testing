@@ -1,0 +1,12 @@
+data/*
+.idea/
+.ipynb_checkpoints/
+notebooks/root_tests
+visualization/SiphraReader/build
+__pycache__/
+*.pyc
+# Do not ignore the sample_data. Track only .dat and .json files
+!data/test_data
+data/test_data/*
+!data/test_data/*.dat
+!data/test_data/*.json
