@@ -108,9 +108,9 @@ def main():
     summed_spectrum = ROOT.TH1F(
         "SIPHRA summing channel spectrum",
         "",
-        512,
+        4096,
         0,
-        4 * 4095,
+        4096,
     )
     summed_spectrum.GetXaxis().SetTitle("ADC channel number")
     summed_spectrum.GetYaxis().SetTitle("Number of counts")
@@ -118,9 +118,9 @@ def main():
     manual_sum_spectrum = ROOT.TH1F(
         "Manual sum",
         "",
-        512,
+        4096,
         0,
-        4 * 4095,
+        4096,
     )
     manual_sum_spectrum.GetXaxis().SetTitle("ADC channel number")
     manual_sum_spectrum.GetYaxis().SetTitle("Number of counts")
@@ -190,7 +190,7 @@ def main():
 
                 # Calculate and fill the manual sum.
                 manual_sum = sum(data_channels)
-                manual_sum_spectrum.Fill(data_manual_sum)
+                manual_sum_spectrum.Fill(data_manual_sum/16)
 
                 lines_read += 1
 
