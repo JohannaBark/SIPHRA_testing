@@ -39,6 +39,7 @@ class SiphraAcquisition:
             active_chs = metadata.active_chs
             sipm_chs = metadata.sipm_chs
             n_events = metadata.n_events
+            self.source = metadata.source
         else:
             self.metadataFile = None
         self.active_chs = self._resolve_active_chs(active_chs)

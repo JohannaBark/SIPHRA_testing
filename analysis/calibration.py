@@ -58,7 +58,7 @@ def calibrated_acquisition(linear_fit, acquisition, n_of_bins, summed = False):
     return(data_cal, emin, emax)
     
 
-def energy_resolution(hist, peak_ranges, show_fit = True):
+def energy_resolution_old(hist, peak_ranges, show_fit = True):
     """Calculates energy resolution. Input peak_ranges as a list of tuples. 
     Outputs a list of resolutions for the different energies."""
     if show_fit:
@@ -113,6 +113,119 @@ def energy_resolution(hist, peak_ranges, show_fit = True):
         #print(f"Resolution Error: {100*dR:.3g} %")
 
     return resolutions
+
+
+
+
+
+
+def energy_resolution(hist, peak_ranges, show_fit=True):
+    """Calculates energy resolution for Gaussian peaks.
+
+    For each peak range:
+      1. Find the maximum bin within the given range.
+      2. Fit a Gaussian over 100 bins to either side of the peak.
+      3. Calculate the energy resolution.
+
+    Args:
+        hist: ROOT histogram.
+        peak_ranges: List of (xmin, xmax) tuples.
+        show_fit: Whether to draw the fit.
+
+    Returns:
+        List of energy resolutions.
+    """
+    import ROOT
+    import math
+
+    resolutions = []
+    errors = []
+
+    for i, (xmin, xmax) in enumerate(peak_ranges):
+
+        # Find the maximum bin within the specified range
+        bin_min = hist.GetXaxis().FindBin(xmin)
+        bin_max = hist.GetXaxis().FindBin(xmax)
+
+        peak_bin = bin_min
+        max_content = -float("inf")
+
+        for b in range(bin_min, bin_max + 1):
+            content = hist.GetBinContent(b)
+            if content > max_content:
+                max_content = content
+                peak_bin = b
+
+        # Get the peak position in histogram coordinates
+        peak_position = hist.GetXaxis().GetBinCenter(peak_bin)
+
+        # Define the fit range using 70 bins on each side
+        fit_min_bin = max(1, int(peak_bin - peak_bin*0.1 - 20))
+        fit_max_bin = min(hist.GetNbinsX(), int(peak_bin + peak_bin*0.1 + 20))
+
+        fit_min = hist.GetXaxis().GetBinLowEdge(fit_min_bin)
+        fit_max = hist.GetXaxis().GetBinUpEdge(fit_max_bin)
+
+        # Create and fit the Gaussian
+        resolution_fit = ROOT.TF1(
+            "res_fit_" + str(i),
+            "gaus",
+            fit_min,
+            fit_max
+        )
+
+        # Initialize the fit near the identified peak
+        resolution_fit.SetParameter(1, peak_position)
+
+        if show_fit:
+            spec = ["R+S", "R+S"]
+        else:
+            spec = ["RS0", "R+S0"]
+
+        if i == 0:
+            fit_result = hist.Fit(resolution_fit, spec[0])
+        else:
+            fit_result = hist.Fit(resolution_fit, spec[1])
+
+        # Extract fitted parameters
+        sigma = resolution_fit.GetParameter(2)
+        sigma_error = resolution_fit.GetParError(2)
+        mean = resolution_fit.GetParameter(1)
+        mean_error = resolution_fit.GetParError(1)
+
+        # Calculate energy resolution
+        resolution = (2.35 * sigma) / mean
+        resolutions.append(resolution)
+
+        # Extract covariance between mean and sigma
+        cov = fit_result.GetCovarianceMatrix()
+        cov_sigma_mean = cov[2][1]
+
+        # Calculate uncertainty on energy resolution
+        term1 = (2.35 / mean)**2 * sigma_error**2
+        term2 = (2.35 * sigma / mean**2)**2 * mean_error**2
+        term3 = (
+            2
+            * (2.35 / mean)
+            * (-2.35 * sigma / mean**2)
+            * cov_sigma_mean
+        )
+
+        variance = term1 + term2 + term3
+        resolution_error = math.sqrt(max(0.0, variance))
+        errors.append(resolution_error)
+
+        # Optional diagnostic output
+        print(f"Peak position: {peak_position}")
+        print(f"Fit range: {fit_min:.3f} to {fit_max:.3f}")
+        print(f"Resolution: {100 * resolution:.3g} %")
+        print(f"Resolution error: {100 * resolution_error:.3g} %")
+
+        
+
+    return resolutions, errors
+
+
 
 def subtract_background(acq_sgnl, acq_bg, name=None, n_chs=None):
     '''Subtract the background from the signal acquisition and return a
